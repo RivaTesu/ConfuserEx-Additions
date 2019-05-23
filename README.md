@@ -1,5 +1,4 @@
-# ConfuserEx-Additions
-New and modified (ConfuserEx) protections
+# New and modified (ConfuserEx) protections
 
 Anti DnSpy, based on NETGuard
 

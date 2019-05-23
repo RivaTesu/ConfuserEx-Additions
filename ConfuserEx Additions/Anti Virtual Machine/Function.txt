@@ -1,0 +1,1 @@
+Prevents the assembly from running on a virtual machine.

@@ -1,0 +1,1 @@
+Prevents assembly execution if dnspy is detected on disk

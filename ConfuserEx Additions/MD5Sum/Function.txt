@@ -1,0 +1,1 @@
+Calculate MD5 checksum of assembly (Integryt Check).

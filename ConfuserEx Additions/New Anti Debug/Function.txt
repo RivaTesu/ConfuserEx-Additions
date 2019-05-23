@@ -1,0 +1,1 @@
+Prevents the assembly from being debugged or profiled.

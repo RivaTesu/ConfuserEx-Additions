@@ -10,4 +10,6 @@ MD5Sum, based on stackoverflow posts
 
 New Renamer, edited from the old source of SunshineNET
 
+Header Protection, from my repository Anti-Memory-Dumping
+
 The rest are editions of the original protections

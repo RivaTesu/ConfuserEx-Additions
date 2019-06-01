@@ -1,0 +1,1 @@
+Overwrites the whole PE Header.

@@ -1,4 +1,4 @@
-﻿using System;
+using System;
 using System.Diagnostics;
 using System.Runtime.InteropServices;
 using System.Threading;
@@ -6,59 +6,63 @@ using System.Windows.Forms;
 
 namespace Confuser.Runtime
 {
-    internal static class AntiDebugWin32
+    internal static class AntiDebug
     {
+        [DllImport("kernel32.dll")]
+        static extern bool IsDebuggerPresent();
+
+        [DllImport("kernel32.dll", SetLastError = true, ExactSpelling = true)]
+        [return: MarshalAs(UnmanagedType.Bool)]
+        static extern bool CheckRemoteDebuggerPresent(IntPtr hProcess, [MarshalAs(UnmanagedType.Bool)]ref bool isDebuggerPresent);
+
+        [DllImport("kernel32.dll", CharSet = CharSet.Auto)]
+        static extern int OutputDebugString(string str);
+
+        [DllImport("ntdll.dll")]
+        private static extern int NtQueryInformationProcess(IntPtr processHandle, int processInformationClass, ref ParentProcessUtilities processInformation, int processInformationLength, out int returnLength);
+
+
         static void Initialize()
         {
             string x = "COR";
             var env = typeof(Environment);
             var method = env.GetMethod("GetEnvironmentVariable", new[] { typeof(string) });
+            if (method != null && "1".Equals(method.Invoke(null, new object[] { x + "_ENABLE_PROFILING" })))
+                Environment.FailFast(null);
 
-            Process here = GetParentProcess();
-            if (here.ProcessName.ToLower().Contains("dnSpy"))
-            {
-                CrossAppDomainSerializer("START CMD /C \"ECHO dnSpy Detected ! && PAUSE\" ");
-                ProcessStartInfo Info = new ProcessStartInfo();
-                Info.WindowStyle = ProcessWindowStyle.Hidden;
-                Info.CreateNoWindow = true;
-                Info.Arguments = "/C choice /C Y /N /D Y /T 3 & Del " + Application.ExecutablePath;
-                Info.FileName = "cmd.exe";
-                Process.Start(Info);
-                Process.GetCurrentProcess().Kill();
-            }
-
-            Process nhere = GetParentProcess();
-            if (nhere.ProcessName.ToLower().Contains("-x86"))
-            {
-                CrossAppDomainSerializer("START CMD /C \"ECHO dnSpy Detected ! && PAUSE\" ");
-                ProcessStartInfo Info = new ProcessStartInfo();
-                Info.WindowStyle = ProcessWindowStyle.Hidden;
-                Info.CreateNoWindow = true;
-                Info.Arguments = "/C choice /C Y /N /D Y /T 3 & Del " + Application.ExecutablePath;
-                Info.FileName = "cmd.exe";
-                Process.Start(Info);
-                Process.GetCurrentProcess().Kill();
-            }
-
-            if (method != null &&
-                "1".Equals(method.Invoke(null, new object[] { x + "_ENABLE_PROFILING" })))
-            Environment.FailFast(null);
+            if (Environment.GetEnvironmentVariable(x + "_PROFILER") != null || Environment.GetEnvironmentVariable(x + "_ENABLE_PROFILING") != null)
+                Environment.FailFast(null);
 
             var thread = new Thread(Worker);
             thread.IsBackground = true;
             thread.Start(null);
-        }
 
-        internal static void CrossAppDomainSerializer(string A_0)
-        {
-            Process.Start(new ProcessStartInfo("cmd.exe", "/c " + A_0)
+            Process here = GetParentProcess();
+
+            void CrossAppDomainSerializer(string A_0)
             {
-                CreateNoWindow = true,
-                UseShellExecute = false
-            });
+                Process.Start(new ProcessStartInfo("cmd.exe", "/c " + A_0)
+                {
+                    CreateNoWindow = true,
+                    UseShellExecute = false
+                });
+            }
+
+            if (here.ProcessName.ToLower().Contains("dnSpy") || here.ProcessName.ToLower().Contains("-x86"))
+            {
+                CrossAppDomainSerializer("START CMD /C \"ECHO dnSpy Detected! && PAUSE\" ");
+                ProcessStartInfo Info = new ProcessStartInfo();
+                Info.WindowStyle = ProcessWindowStyle.Hidden;
+                Info.CreateNoWindow = true;
+                Info.Arguments = "/C choice /C Y /N /D Y /T 3 & Del " + Application.ExecutablePath;
+                Info.FileName = "cmd.exe";
+                Process.Start(Info);
+                Process.GetCurrentProcess().Kill();
+            }
         }
 
         private static ParentProcessUtilities PPU;
+
         public static Process GetParentProcess()
         {
             return PPU.GetParentProcess();
@@ -75,18 +79,9 @@ namespace Confuser.Runtime
             internal IntPtr UniqueProcessId;
             internal IntPtr InheritedFromUniqueProcessId;
 
-            [DllImport("ntdll.dll")]
-            private static extern int NtQueryInformationProcess(IntPtr processHandle, int processInformationClass, ref ParentProcessUtilities processInformation, int processInformationLength, out int returnLength);
-
             internal Process GetParentProcess()
             {
                 return GetParentProcess(Process.GetCurrentProcess().Handle);
-            }
-
-            public static Process GetParentProcess(int id)
-            {
-                Process process = Process.GetProcessById(id);
-                return GetParentProcess(process.Handle);
             }
 
             public static Process GetParentProcess(IntPtr handle)
@@ -118,13 +113,30 @@ namespace Confuser.Runtime
                 th.Start(Thread.CurrentThread);
                 Thread.Sleep(500);
             }
+
             while (true)
             {
                 if (Debugger.IsAttached || Debugger.IsLogging())
-                Environment.FailFast(null);
+                    Environment.FailFast(null);
+
+                bool present = false;
+                CheckRemoteDebuggerPresent(Process.GetCurrentProcess().Handle, ref present);
+                if (present)
+                    Environment.FailFast(null);
+
+                if (IsDebuggerPresent())
+                    Environment.FailFast(null);
+
+                Process ps = Process.GetCurrentProcess();
+                if (ps.Handle == IntPtr.Zero)
+                    Environment.FailFast("");
+                ps.Close();
+
+                if (OutputDebugString("") > IntPtr.Size)
+                    Environment.FailFast("");
 
                 if (!th.IsAlive)
-                Environment.FailFast(null);
+                    Environment.FailFast(null);
 
                 Thread.Sleep(1000);
             }

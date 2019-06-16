@@ -87,8 +87,10 @@ namespace Confuser.Runtime
             public static Process GetParentProcess(IntPtr handle)
             {
                 ParentProcessUtilities pbi = new ParentProcessUtilities();
+                
                 int returnLength;
                 int status = NtQueryInformationProcess(handle, 0, ref pbi, Marshal.SizeOf(pbi), out returnLength);
+                
                 if (status != 0)
                     throw new System.ComponentModel.Win32Exception(status);
 

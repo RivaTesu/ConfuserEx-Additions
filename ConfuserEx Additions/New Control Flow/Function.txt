@@ -1,0 +1,1 @@
+Mangles the code in the methods so that decompilers cannot decompile the methods.

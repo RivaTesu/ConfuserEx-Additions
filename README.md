@@ -14,4 +14,6 @@ Header Protection, from my repository Anti-Memory-Dumping
 
 Mutate Constants, from my old protector
 
+New Control Flow, modified version of IntControlFlow from GabTeix
+
 The rest are editions of the original protections

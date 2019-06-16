@@ -12,4 +12,6 @@ New Renamer, edited from the old source of SunshineNET
 
 Header Protection, from my repository Anti-Memory-Dumping
 
+Mutate Constants, from my old protector
+
 The rest are editions of the original protections

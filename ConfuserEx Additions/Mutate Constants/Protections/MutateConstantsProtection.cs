@@ -3,13 +3,11 @@ using System.Linq;
 using Confuser.Core;
 using dnlib.DotNet;
 using dnlib.DotNet.Emit;
+using System.Collections.Generic;
 
 namespace Confuser.Protections
 {
-    [BeforeProtection(new string[]
-    {
-        "Ki.ControlFlow"
-    })]
+    [BeforeProtection("Ki.ControlFlow")]
 
     internal class MutateConstantsProtection : Protection
     {
@@ -91,7 +89,13 @@ namespace Confuser.Protections
             }
 
             public CilBody body;
+
             public static Random rnd = new Random();
+
+            public static double RandomDouble(double min, double max)
+            {
+                return new Random().NextDouble() * (max - min) + min;
+            }
 
             protected override void Execute(ConfuserContext context, ProtectionParameters parameters)
             {
@@ -105,14 +109,76 @@ namespace Confuser.Protections
                             {
                                 for (int i = 0; i < methodDef.Body.Instructions.Count; i++)
                                 {
-                                    if (methodDef.Body.Instructions[i].OpCode == OpCodes.Ldc_I4)
+                                    if (methodDef.Body.Instructions[i].IsLdcI4())
                                     {
+                                        // EmptyType
+
+                                        int operand = methodDef.Body.Instructions[i].GetLdcI4Value();
+                                        methodDef.Body.Instructions[i].Operand = operand - Type.EmptyTypes.Length;
+                                        methodDef.Body.Instructions[i].OpCode = OpCodes.Ldc_I4;
+                                        methodDef.Body.Instructions.Insert(i + 1, OpCodes.Ldsfld.ToInstruction(methodDef.Module.Import(typeof(Type).GetField("EmptyTypes"))));
+                                        methodDef.Body.Instructions.Insert(i + 2, Instruction.Create(OpCodes.Ldlen));
+                                        methodDef.Body.Instructions.Insert(i + 3, Instruction.Create(OpCodes.Add));
+
                                         body = methodDef.Body;
                                         int ldcI4Value = body.Instructions[i].GetLdcI4Value();
                                         int num = rnd.Next(1, 4);
                                         int num2 = ldcI4Value - num;
                                         body.Instructions[i].Operand = num2;
                                         Mutate(i, num, num2, moduleDef);
+
+                                        // Double Parse
+
+                                        int operand3 = methodDef.Body.Instructions[i].GetLdcI4Value();
+                                        double n = RandomDouble(1.0, 1000.0);
+                                        string converter = Convert.ToString(n);
+                                        double nEw = double.Parse(converter);
+                                        int conta = operand3 - (int)nEw;
+                                        methodDef.Body.Instructions[i].Operand = conta;
+                                        methodDef.Body.Instructions[i].OpCode = OpCodes.Ldc_I4;
+                                        methodDef.Body.Instructions.Insert(i + 1, Instruction.Create(OpCodes.Ldstr, converter));
+                                        methodDef.Body.Instructions.Insert(i + 2, OpCodes.Call.ToInstruction(methodDef.Module.Import(typeof(double).GetMethod("Parse", new Type[] { typeof(string) }))));
+                                        methodDef.Body.Instructions.Insert(i + 3, OpCodes.Conv_I4.ToInstruction());
+                                        methodDef.Body.Instructions.Insert(i + 4, Instruction.Create(OpCodes.Add));
+
+                                        // Calc
+
+                                        int op = methodDef.Body.Instructions[i].GetLdcI4Value();
+                                        int newvalue = rnd.Next(-100, 10000);
+                                        switch (rnd.Next(1, 4))
+                                        {
+                                            case 1:
+                                                methodDef.Body.Instructions[i].Operand = op - newvalue;
+                                                methodDef.Body.Instructions.Insert(i + 1, OpCodes.Ldc_I4.ToInstruction(newvalue));
+                                                methodDef.Body.Instructions.Insert(i + 2, OpCodes.Add.ToInstruction());
+                                                i += 2;
+                                                break;
+                                            case 2:
+                                                methodDef.Body.Instructions[i].Operand = op + newvalue;
+                                                methodDef.Body.Instructions.Insert(i + 1, OpCodes.Ldc_I4.ToInstruction(newvalue));
+                                                methodDef.Body.Instructions.Insert(i + 2, OpCodes.Sub.ToInstruction());
+                                                i += 2;
+                                                break;
+                                            case 3:
+                                                methodDef.Body.Instructions[i].Operand = op ^ newvalue;
+                                                methodDef.Body.Instructions.Insert(i + 1, OpCodes.Ldc_I4.ToInstruction(newvalue));
+                                                methodDef.Body.Instructions.Insert(i + 2, OpCodes.Xor.ToInstruction());
+                                                i += 2;
+                                                break;
+                                            case 4:
+                                                int operand2 = methodDef.Body.Instructions[i].GetLdcI4Value();
+                                                methodDef.Body.Instructions[i].OpCode = OpCodes.Ldc_I4;
+                                                methodDef.Body.Instructions[i].Operand = operand2 - 1;
+                                                int valor = rnd.Next(100, 500);
+                                                int valor2 = rnd.Next(1000, 5000);
+                                                methodDef.Body.Instructions.Insert(i + 1, Instruction.CreateLdcI4(valor));
+                                                methodDef.Body.Instructions.Insert(i + 2, Instruction.CreateLdcI4(valor2));
+                                                methodDef.Body.Instructions.Insert(i + 3, Instruction.Create(OpCodes.Clt));
+                                                methodDef.Body.Instructions.Insert(i + 4, Instruction.Create(OpCodes.Conv_I4));
+                                                methodDef.Body.Instructions.Insert(i + 5, Instruction.Create(OpCodes.Add));
+                                                i += 5;
+                                                break;
+                                        }
                                     }
                                 }
                             }

@@ -16,4 +16,6 @@ Mutate Constants, from my old protector
 
 New Control Flow, modified version of IntControlFlow from GabTeix
 
+Reduce Metadata Optimization, from my old protector
+
 The rest are editions of the original protections

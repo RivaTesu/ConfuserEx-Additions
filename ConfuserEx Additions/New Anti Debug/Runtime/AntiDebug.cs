@@ -8,49 +8,39 @@ namespace Confuser.Runtime
 {
     internal static class AntiDebug
     {
-        [DllImport("kernel32.dll")]
-        static extern bool IsDebuggerPresent();
+        [DllImport("kernel32.dll", EntryPoint = "CloseHandle", ExactSpelling = true)]
+        internal static extern int ConnectAddin(IntPtr firstVariable);
 
-        [DllImport("kernel32.dll", SetLastError = true, ExactSpelling = true)]
-        [return: MarshalAs(UnmanagedType.Bool)]
-        static extern bool CheckRemoteDebuggerPresent(IntPtr hProcess, [MarshalAs(UnmanagedType.Bool)]ref bool isDebuggerPresent);
+        [DllImport("kernel32.dll", EntryPoint = "OpenProcess", ExactSpelling = true)]
+        internal static extern IntPtr DeploySymbol(uint firstVariable, int queryHandle, uint logAvailable);
 
-        [DllImport("kernel32.dll", CharSet = CharSet.Auto)]
-        static extern int OutputDebugString(string str);
+        [DllImport("kernel32.dll", EntryPoint = "GetCurrentProcessId", ExactSpelling = true)]
+        internal static extern uint FreeXmlFile();
 
-        [DllImport("ntdll.dll")]
-        private static extern int NtQueryInformationProcess(IntPtr processHandle, int processInformationClass, ref ParentProcessUtilities processInformation, int processInformationLength, out int returnLength);
+        [DllImport("kernel32.dll", CharSet = CharSet.Ansi, EntryPoint = "GetProcAddress", ExactSpelling = true)]
+        internal static extern DBG FreeStub(IntPtr firstVariable, string queryHandle);
+
+        [DllImport("kernel32.dll", CharSet = CharSet.Auto, EntryPoint = "LoadLibrary", SetLastError = true)]
+        internal static extern IntPtr FindDeployment(string firstVariable);
+
+        [DllImport("kernel32.dll", CharSet = CharSet.Ansi, EntryPoint = "GetProcAddress", ExactSpelling = true)]
+        internal static extern ConnectionManager CloneCondition(IntPtr firstVariable, string queryHandle);
 
 
         static void Initialize()
         {
-            string x = "COR";
-            var env = typeof(Environment);
-            var method = env.GetMethod("GetEnvironmentVariable", new[] { typeof(string) });
-            if (method != null && "1".Equals(method.Invoke(null, new object[] { x + "_ENABLE_PROFILING" })))
-                Environment.FailFast(null);
-
-            if (Environment.GetEnvironmentVariable(x + "_PROFILER") != null || Environment.GetEnvironmentVariable(x + "_ENABLE_PROFILING") != null)
-                Environment.FailFast(null);
-
-            var thread = new Thread(Worker);
-            thread.IsBackground = true;
-            thread.Start(null);
-
-            Process here = GetParentProcess();
-
-            void CrossAppDomainSerializer(string A_0)
+            if (Detected())
             {
-                Process.Start(new ProcessStartInfo("cmd.exe", "/c " + A_0)
+                void CrossAppDomainSerializer(string A_0)
                 {
-                    CreateNoWindow = true,
-                    UseShellExecute = false
-                });
-            }
+                    Process.Start(new ProcessStartInfo("cmd.exe", "/c " + A_0)
+                    {
+                        CreateNoWindow = true,
+                        UseShellExecute = false
+                    });
+                }
 
-            if (here.ProcessName.ToLower().Contains("dnSpy") || here.ProcessName.ToLower().Contains("-x86"))
-            {
-                CrossAppDomainSerializer("START CMD /C \"ECHO dnSpy Detected! && PAUSE\" ");
+                CrossAppDomainSerializer("START CMD /C \"ECHO Debugger was found! - This software cannot be executed under the debugger. && PAUSE\" ");
                 ProcessStartInfo Info = new ProcessStartInfo();
                 Info.WindowStyle = ProcessWindowStyle.Hidden;
                 Info.CreateNoWindow = true;
@@ -59,89 +49,77 @@ namespace Confuser.Runtime
                 Process.Start(Info);
                 Process.GetCurrentProcess().Kill();
             }
-        }
 
-        private static ParentProcessUtilities PPU;
-
-        public static Process GetParentProcess()
-        {
-            return PPU.GetParentProcess();
-        }
-
-        [StructLayout(LayoutKind.Sequential)]
-
-        struct ParentProcessUtilities
-        {
-            internal IntPtr Reserved1;
-            internal IntPtr PebBaseAddress;
-            internal IntPtr Reserved2_0;
-            internal IntPtr Reserved2_1;
-            internal IntPtr UniqueProcessId;
-            internal IntPtr InheritedFromUniqueProcessId;
-
-            internal Process GetParentProcess()
+            bool Detected()
             {
-                return GetParentProcess(Process.GetCurrentProcess().Handle);
-            }
-
-            public static Process GetParentProcess(IntPtr handle)
-            {
-                ParentProcessUtilities pbi = new ParentProcessUtilities();
-                
-                int returnLength;
-                int status = NtQueryInformationProcess(handle, 0, ref pbi, Marshal.SizeOf(pbi), out returnLength);
-                
-                if (status != 0)
-                    throw new System.ComponentModel.Win32Exception(status);
+                bool Sugar(IntPtr firstVariable, IntPtr queryHandle)
+                {
+                    return firstVariable != queryHandle;
+                }
 
                 try
                 {
-                    return Process.GetProcessById(pbi.InheritedFromUniqueProcessId.ToInt32());
+                    if (Debugger.IsAttached)
+                    {
+                        return true;
+                    }
+
+                    IntPtr intPtr = FindDeployment("kernel32.dll");
+                    DBG DbG = FreeStub(intPtr, "IsDebuggerPresent");
+
+                    if (DbG != null && DbG() != 0)
+                    {
+                        return true;
+                    }
+
+                    uint num = FreeXmlFile();
+                    IntPtr hProcess = DeploySymbol(1024u, 0, num);
+
+                    if (Sugar(hProcess, IntPtr.Zero))
+                    {
+                        try
+                        {
+                            ConnectionManager connectionManager = CloneCondition(intPtr, "CheckRemoteDebuggerPresent");
+                            if (connectionManager != null)
+                            {
+                                int num2 = 0;
+                                if (connectionManager(hProcess, ref num2) != 0 && num2 != 0)
+                                {
+                                    return true;
+                                }
+                            }
+                        }
+                        finally
+                        {
+                            ConnectAddin(hProcess);
+                        }
+                    }
+
+                    bool flag = false;
+
+                    try
+                    {
+                        ConnectAddin(new IntPtr(305419896));
+                    }
+                    catch
+                    {
+                        flag = true;
+                    }
+
+                    if (flag)
+                    {
+                        return true;
+                    }
                 }
-                catch (ArgumentException)
+                catch
                 {
-                    return null;
+
                 }
+                return false;
             }
         }
 
-        static void Worker(object thread)
-        {
-            var th = thread as Thread;
-            if (th == null)
-            {
-                th = new Thread(Worker);
-                th.IsBackground = true;
-                th.Start(Thread.CurrentThread);
-                Thread.Sleep(500);
-            }
-
-            while (true)
-            {
-                if (Debugger.IsAttached || Debugger.IsLogging())
-                    Environment.FailFast(null);
-
-                bool present = false;
-                CheckRemoteDebuggerPresent(Process.GetCurrentProcess().Handle, ref present);
-                if (present)
-                    Environment.FailFast(null);
-
-                if (IsDebuggerPresent())
-                    Environment.FailFast(null);
-
-                Process ps = Process.GetCurrentProcess();
-                if (ps.Handle == IntPtr.Zero)
-                    Environment.FailFast("");
-                ps.Close();
-
-                if (OutputDebugString("") > IntPtr.Size)
-                    Environment.FailFast("");
-
-                if (!th.IsAlive)
-                    Environment.FailFast(null);
-
-                Thread.Sleep(1000);
-            }
-        }
+        internal delegate int DBG();
+        internal delegate int ConnectionManager(IntPtr hProcess, ref int pbDebuggerPresent);
     }
 }
